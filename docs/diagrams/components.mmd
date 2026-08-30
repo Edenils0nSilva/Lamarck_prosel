@@ -1,0 +1,72 @@
+flowchart TB
+    classDef ext fill:#eef4ff,stroke:#2f5fbf,color:#12325f;
+    classDef api fill:#fff7e6,stroke:#c98a00,color:#5c3d00;
+    classDef dom fill:#eafbf0,stroke:#1f8a4c,color:#0d3d22;
+    classDef port fill:#f3eaff,stroke:#7a3fbf,color:#341257;
+    classDef infra fill:#f7f8fa,stroke:#666,color:#222;
+
+    Cliente["Aplicação Cliente<br/>(atendimento)"]:::ext
+    Consumidor["Sistemas Internos<br/>Consumidores"]:::ext
+    IAext["Modelo Multimodal<br/>de Terceiro"]:::ext
+
+    subgraph API["Camada de API (NestJS Controllers)"]
+        direction LR
+        DC["DocumentsController"]:::api
+        RC["ReviewController"]:::api
+        HC["HealthController"]:::api
+    end
+
+    subgraph DOMAIN["Núcleo de Aplicação / Domínio (módulos NestJS)"]
+        direction LR
+        ING["IngestionModule<br/>validar · deduplicar · armazenar · enfileirar"]:::dom
+        PROC["ProcessingModule<br/>worker · orquestra IA · retry/backoff"]:::dom
+        REV["ReviewModule<br/>fila · correções · concorrência"]:::dom
+        QRY["QueryModule<br/>consulta · listagem"]:::dom
+    end
+
+    subgraph PORTS["Portas (interfaces)"]
+        direction LR
+        P1["AiClassificationPort"]:::port
+        P2["DocumentRepositoryPort"]:::port
+        P3["FileStoragePort"]:::port
+        P4["QueuePort"]:::port
+        P5["PromptProviderPort"]:::port
+    end
+
+    subgraph INFRA["Adaptadores (infraestrutura)"]
+        direction LR
+        A1["AiAdapter / StubAiAdapter"]:::infra
+        A2["PostgresRepository"]:::infra
+        A3["ObjectStorageAdapter"]:::infra
+        A4["QueueAdapter (BullMQ/Redis)"]:::infra
+        A5["PromptProvider (arquivos versionados)"]:::infra
+    end
+
+    DB[("PostgreSQL")]:::infra
+    OBJ[("Object Storage<br/>S3/MinIO")]:::infra
+    Q[("Fila<br/>Redis")]:::infra
+
+    Cliente -->|HTTPS + auth s2s| DC
+    Consumidor -->|HTTPS + auth s2s| DC
+    Consumidor --> RC
+
+    DC --> ING
+    DC --> QRY
+    RC --> REV
+    PROC --> Q
+
+    ING --> P2 & P3 & P4
+    PROC --> P1 & P2 & P5
+    REV --> P2
+    QRY --> P2
+
+    P1 --> A1
+    P2 --> A2
+    P3 --> A3
+    P4 --> A4
+    P5 --> A5
+
+    A1 -->|5-40s, pode falhar| IAext
+    A2 --> DB
+    A3 --> OBJ
+    A4 --> Q

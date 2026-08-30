@@ -1,0 +1,90 @@
+classDiagram
+    direction LR
+
+    class Document {
+        +UUID id
+        +string originalFilename
+        +string mimeType
+        +int sizeBytes
+        +string contentHash
+        +DocumentSource source
+        +DocumentStatus status
+        +string standardizedName
+        +datetime createdAt
+        +datetime updatedAt
+        +string storageKey
+    }
+
+    class ExtractionResult {
+        +UUID id
+        +DocumentType type
+        +float confidence
+        +string modelVersion
+        +string promptVersion
+        +datetime createdAt
+    }
+
+    class ExtractedField {
+        +string name
+        +string value
+        +float confidence
+    }
+
+    class ProcessingAttempt {
+        +UUID id
+        +int attemptNumber
+        +AttemptOutcome outcome
+        +int latencyMs
+        +float costUnits
+        +string errorMessage
+        +datetime startedAt
+        +datetime finishedAt
+    }
+
+    class ReviewTask {
+        +UUID id
+        +ReviewStatus status
+        +string assignedTo
+        +datetime lockedAt
+        +datetime resolvedAt
+    }
+
+    class Correction {
+        +UUID id
+        +string fieldName
+        +string oldValue
+        +string newValue
+        +string correctedBy
+        +datetime correctedAt
+    }
+
+    class DocumentStatus {
+        <<enumeration>>
+        RECEBIDO
+        NA_FILA
+        PROCESSANDO
+        PROCESSADO
+        PENDENTE_CONFERENCIA
+        FALHA
+        REVISADO
+    }
+
+    class DocumentType {
+        <<enumeration>>
+        IDENTIDADE
+        COMPROVANTE_RESIDENCIA
+        CONTRACHEQUE
+        CTPS
+        LAUDO
+        PROCURACAO
+        CONTRATO
+        DESCONHECIDO
+    }
+
+    Document "1" --> "0..*" ProcessingAttempt : tentativas
+    Document "1" --> "0..*" ExtractionResult : histórico
+    Document "1" --> "0..1" ReviewTask : conferência
+    ExtractionResult "1" --> "1..*" ExtractedField : campos
+    ReviewTask "1" --> "0..*" Correction : correções
+    Document ..> DocumentStatus
+    ExtractionResult ..> DocumentType

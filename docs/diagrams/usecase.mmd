@@ -1,0 +1,35 @@
+flowchart LR
+    classDef actor fill:#eef4ff,stroke:#2f5fbf,stroke-width:1px,color:#12325f;
+    classDef uc fill:#ffffff,stroke:#444,stroke-width:1px,color:#111;
+    classDef sys fill:#f7f8fa,stroke:#999,stroke-dasharray:4 3;
+
+    Cliente["👤 Aplicação Cliente<br/>(atendimento)"]:::actor
+    Conferente["👤 Atendente Conferente"]:::actor
+    Consumidor["👤 Sistema Interno<br/>Consumidor"]:::actor
+    IA["🤖 Modelo de IA<br/>(3º, multimodal)"]:::actor
+
+    subgraph SB["Sistema — DOC Intelligence"]
+        direction TB
+        UC01(["UC01 Enviar documento"]):::uc
+        UC02(["UC02 Consultar resultado"]):::uc
+        UC03(["UC03 Listar processados"]):::uc
+        UC04(["UC04 Processar documento<br/>(classificar + extrair + nomear)"]):::uc
+        UC05(["UC05 Listar fila de conferência"]):::uc
+        UC06(["UC06 Conferir e corrigir"]):::uc
+        UC07(["UC07 Reprocessar documento"]):::uc
+        UCV(["Validar e deduplicar"]):::uc
+    end
+    class SB sys
+
+    Cliente --> UC01
+    Consumidor --> UC02
+    Consumidor --> UC03
+    Conferente --> UC05
+    Conferente --> UC06
+    Conferente --> UC07
+
+    UC01 -. «include» .-> UCV
+    UC01 -. dispara .-> UC04
+    UC04 -. «include» .-> IA
+    UC04 -. «extend» baixa confiança .-> UC06
+    UC07 -. «include» .-> IA

@@ -1,0 +1,28 @@
+flowchart LR
+    classDef start fill:#eef4ff,stroke:#2f5fbf,color:#12325f;
+    classDef proc fill:#ffffff,stroke:#444,color:#111;
+    classDef dec fill:#fff7e6,stroke:#c98a00,color:#5c3d00;
+    classDef term fill:#eafbf0,stroke:#1f8a4c,color:#0d3d22;
+    classDef alt fill:#fdecec,stroke:#c0392b,color:#7a1f16;
+
+    A["Envio<br/>POST /documents"]:::start --> B{"Válido?"}:::dec
+    B -->|não| B1["Rejeita 422"]:::alt
+    B -->|sim| C["Hash do conteúdo"]:::proc
+    C --> D{"Dedup?"}:::dec
+    D -->|sim| D1["Retorna existente<br/>(idempotente)"]:::term
+    D -->|não| E["Armazena + Document<br/>status=RECEBIDO"]:::proc
+    E --> F["Enfileira<br/>NA_FILA"]:::proc
+    F --> G["Worker<br/>PROCESSANDO"]:::proc
+    G --> H["AiAdapter<br/>classificar+extrair"]:::proc
+    H --> I{"Sucesso?"}:::dec
+    I -->|erro/timeout| J{"tentativas<br/>&lt; N?"}:::dec
+    J -->|sim| K["Retry backoff"]:::alt
+    K --> G
+    J -->|não| L["FALHA"]:::alt
+    I -->|sim| M["Grava resultado<br/>+ nome padrão"]:::proc
+    M --> N{"confiança<br/>≥ limiar?"}:::dec
+    N -->|sim| O["PROCESSADO"]:::term
+    N -->|não| P["PENDENTE_<br/>CONFERENCIA"]:::alt
+    L --> Q
+    P --> Q["Conferente assume<br/>(lock) e corrige"]:::proc
+    Q --> R["REVISADO"]:::term
