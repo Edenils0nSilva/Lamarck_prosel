@@ -16,7 +16,7 @@ import { HealthModule } from './health/health.module';
       load: [configuration],
       validate: validateEnv,
     }),
-    InfrastructureModule,
+    InfrastructureModule.forRoot(),
     IngestionModule,
     ProcessingModule,
     QueryModule,
