@@ -11,8 +11,8 @@ Cada ADR é um arquivo numerado (`NNNN-titulo.md`). Use `0000-template.md` como 
 | ADR | Decisão | Status |
 |-----|---------|--------|
 | [0001](0001-processamento-assincrono.md) | Processamento assíncrono via fila | Aceito |
-| 0002 | Ports & Adapters isolando IA, banco, storage e fila | A escrever |
-| 0003 | Deduplicação por hash de conteúdo + idempotência | A escrever |
-| 0004 | Prompts externalizados e versionados | A escrever |
-| 0005 | Limiar de confiança roteando para conferência humana | A escrever |
-| 0006 | Object storage para binários; banco relacional só para metadados | A escrever |
+| [0002](0002-ports-and-adapters.md) | Arquitetura Ports & Adapters (hexagonal) | Aceito |
+| [0003](0003-deduplicacao-idempotencia.md) | Deduplicação por hash de conteúdo e idempotência | Aceito |
+| [0004](0004-prompts-versionados.md) | Prompts externalizados e versionados | Aceito |
+| [0005](0005-limiar-de-confianca.md) | Limiar de confiança roteando para conferência | Aceito |
+| [0006](0006-storage-binarios-vs-metadados.md) | Object storage para binários; banco só para metadados | Aceito |
