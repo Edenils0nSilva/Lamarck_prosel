@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import {
   DocumentListFilter,
   DocumentListResult,
   DocumentRepositoryPort,
 } from '../../ports';
-import { Document, ExtractionResult } from '../../domain';
+import { Document, ExtractionResult, DuplicateContentHashError } from '../../domain';
 import { DocumentEntity } from './entities/document.entity';
 import { ExtractionResultEntity } from './entities/extraction-result.entity';
 
@@ -37,8 +37,18 @@ export class TypeOrmDocumentRepository implements DocumentRepositoryPort {
   }
 
   async save(document: Document): Promise<Document> {
-    const saved = await this.docs.save(this.docs.create(document));
-    return this.toDomain(saved);
+    try {
+      const saved = await this.docs.save(this.docs.create(document));
+      return this.toDomain(saved);
+    } catch (err) {
+      // 23505 = unique_violation no Postgres: dois envios idênticos simultâneos
+      // (fato c). Deixa a constraint arbitrar e sinaliza a corrida ao serviço.
+      const code = (err as { driverError?: { code?: string } }).driverError?.code;
+      if (err instanceof QueryFailedError && code === '23505') {
+        throw new DuplicateContentHashError(document.contentHash);
+      }
+      throw err;
+    }
   }
 
   async update(document: Document): Promise<Document> {

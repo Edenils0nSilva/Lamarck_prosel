@@ -16,7 +16,7 @@ import {
   QUEUE_PORT,
   QueuePort,
 } from '../ports';
-import { Document, DocumentSource, DocumentStatus } from '../domain';
+import { Document, DocumentSource, DocumentStatus, DuplicateContentHashError } from '../domain';
 import { UploadResponseDto } from './dto/upload-response.dto';
 
 export interface IncomingFile {
@@ -69,7 +69,21 @@ export class IngestionService {
       createdAt: now,
       updatedAt: now,
     };
-    await this.repo.save(document);
+    try {
+      await this.repo.save(document);
+    } catch (err) {
+      // Corrida de dedup (fato c): outro envio idêntico venceu entre o
+      // findByHash e o save. Respondemos idempotente com o vencedor, em vez
+      // de deixar vazar 500.
+      if (err instanceof DuplicateContentHashError) {
+        const winner = await this.repo.findByHash(contentHash);
+        if (winner) {
+          this.logger.log(`Corrida de dedup resolvida para o hash; retornando ${winner.id}`);
+          return { id: winner.id, status: winner.status, duplicated: true };
+        }
+      }
+      throw err;
+    }
 
     // Enfileira e marca NA_FILA (ADR-0001).
     document.status = DocumentStatus.NA_FILA;

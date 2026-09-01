@@ -4,7 +4,7 @@ import {
   DocumentListResult,
   DocumentRepositoryPort,
 } from '../../ports';
-import { Document, ExtractionResult } from '../../domain';
+import { Document, ExtractionResult, DuplicateContentHashError } from '../../domain';
 
 /**
  * Repositório em memória (esqueleto). Mantém o serviço funcional sem Postgres.
@@ -17,6 +17,11 @@ export class InMemoryDocumentRepository implements DocumentRepositoryPort {
   private readonly results = new Map<string, ExtractionResult>(); // documentId -> result
 
   async save(document: Document): Promise<Document> {
+    // Sinaliza a colisão de hash como a constraint única faria no banco, para
+    // que o serviço trate a corrida de dedup pelo mesmo caminho (fato c).
+    if (this.hashIndex.has(document.contentHash)) {
+      throw new DuplicateContentHashError(document.contentHash);
+    }
     this.documents.set(document.id, document);
     this.hashIndex.set(document.contentHash, document.id);
     return document;
