@@ -35,6 +35,34 @@ ambiente. Por isso o mesmo código roda **sem infra** (adaptadores em memória, 
 com **Postgres + Redis/BullMQ + MinIO** — trocando apenas o `.env`. Ver `docs/spec.md` e
 `docs/adr/` para o raciocínio completo.
 
+## Cobertura do enunciado
+
+Índice de onde cada exigência do enunciado é tratada, para não obrigar a procurar entre os ADRs.
+
+### Os cinco comportamentos-alvo
+
+| # | Comportamento | Onde | Situação |
+|---|---|---|---|
+| 1 | Receber um documento (imagem/PDF) de uma aplicação cliente | `POST /v1/documents` (`ingestion/`) | Implementado |
+| 2 | Descobrir o tipo, extrair campos e propor nome padronizado | `ProcessingService` + `naming.ts` | Implementado **com dublê determinístico** |
+| 3 | Consultar o resultado e listar os processados | `GET /v1/documents/:id` e `GET /v1/documents` | Implementado |
+| 4 | Sem confiança, o documento fica para conferência humana | limiar em `ProcessingService` → `PENDENTE_CONFERENCIA` | Implementado (roteamento); operação da fila é contrato |
+| 5 | Consumido por sistemas internos, não por navegador anônimo | contrato da API + guard de autenticação | Projetado como contrato (guard não implementado na fatia) |
+
+### Os fatos do ambiente (a)–(g)
+
+| Fato | Tratamento | Onde | Em aberto |
+|---|---|---|---|
+| (a) IA 5–40s, cobrada, falha | Assíncrono (202 imediato) + timeout/retry com backoff; falha → conferência | ADR-0001, `ProcessingService` | Sem circuit breaker / dead-letter |
+| (b) Envio sem validação, nome arbitrário | Validação de tipo/tamanho; nome padronizado derivado do conteúdo, nunca do recebido | `IngestionService`, `naming.ts` | Bytes não conferidos contra o content-type declarado |
+| (c) Mesmo documento chega mais de uma vez | Dedup por SHA-256 + resposta idempotente, inclusive no **reenvio simultâneo** | ADR-0003, `IngestionService`, `dedup*.e2e-spec` | Dedup por bytes idênticos (não perceptual) |
+| (d) Dado pessoal e sensível | LGPD no projeto: acesso restrito, sem conteúdo em log; dublê usa dados fictícios | ADR-0006/spec | Cripto em repouso, retenção e auditoria fora da fatia |
+| (e) 150/dia, picos de 800 (9h–11h) | Fila desacopla o pico; workers escaláveis | ADR-0001, docker-compose | Autoscaling por profundidade de fila; um worker por processo |
+| (f) Modelo e prompts mudam | IA atrás de `AiClassificationPort`; model/prompt version por resultado | ADR-0002/0004 | Diretório de templates só com extrator real |
+| (g) Duas pessoas na fila ao mesmo tempo | Projetado: claim/lock no contrato (rotas 501) | ADR-0004, `review/` | Operação da fila fora da fatia (risco registrado) |
+
+Ver [docs/divergencias.md](docs/divergencias.md) para onde a implementação divergiu da especificação.
+
 ## Requisitos
 
 - Node.js 20+ e npm.
